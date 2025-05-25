@@ -97,7 +97,7 @@ def main():
     
     print("--------Нормальные частоты--------")
     print("ω1 =", get_w1((G / l).sqrt(), beta))
-    print("ω1 =", get_w2(k, m, l1, l, beta))
+    print("ω2 =", get_w2(k, m, l1, l, beta))
     build_graphs(beta, phi1_0, phi2_0, k, d, l1, m, l)
 
 
