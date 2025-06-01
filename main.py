@@ -1,7 +1,7 @@
 from decimal import Decimal
 from math import pi
 
-from main_graphs import build_graphs
+from main_graphs import build_graphs, build_graphs_euler
 from normal_frequency_1 import get_w1
 from normal_frequency_2 import get_w2, G
 

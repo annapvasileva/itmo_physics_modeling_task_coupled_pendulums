@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from math import pi
 from scipy.signal import find_peaks
 import numpy as np
+from scipy.integrate import solve_ivp
 
 PHI_0 = Decimal(pi / 4)
 
@@ -104,12 +105,11 @@ def get_w1_euler(natural_frequency : Decimal, beta : Decimal, phi_0 : Decimal = 
     
     y1_i = phi_0
     y2_i = w_0
-    y2_i_derivative = -Decimal(2) * beta * y2_i + natural_frequency * natural_frequency * sin_decimal(y1_i)
     
     for _ in range(1, steps):
+        y2_i_derivative = f(y1_i, y2_i, natural_frequency, beta)
         y1_next = y1_i + y2_i * t_step + y2_i_derivative * t_step * t_step / 2
         y2_next = y2_i + y2_i_derivative * t_step
-        y2_i_derivative = -Decimal(2) * beta * y2_i + natural_frequency * natural_frequency * sin_decimal(y1_i)
         y1_i = y1_next
         y2_i = y2_next
         y1_values.append(y1_i)
@@ -144,3 +144,9 @@ def get_w1_euler(natural_frequency : Decimal, beta : Decimal, phi_0 : Decimal = 
     res_w = Decimal(2 * pi) / Decimal(t_avg)
     
     return res_w
+
+
+# l = Decimal(0.79)
+# beta = Decimal(0)
+# phi_0 = Decimal(0.17)
+# get_w1_euler((Decimal(9.8)/l).sqrt(), beta, phi_0)

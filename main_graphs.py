@@ -7,6 +7,8 @@ from normal_frequency_2 import G
 W1_0 = Decimal(0)           # s^-1
 W2_0 = Decimal(0)           # s^-1
 
+EPSILON = Decimal(0e-7)
+
 def cos_decimal(x: Decimal):
     sin_dec = sin_decimal(x)
     sin_sq = sin_dec * sin_dec
@@ -45,6 +47,23 @@ def f1(y1: Decimal, y2: Decimal, y3 : Decimal, w0: Decimal, beta: Decimal, k: De
 def f2(y1: Decimal, y2: Decimal, y4 : Decimal, w0: Decimal, beta: Decimal, k: Decimal, d: Decimal, l1: Decimal, m: Decimal, l: Decimal):
     return -w0 * w0 * sin_decimal(y2) - Decimal(2) * beta * y4 - k * delta_l(d, l1, y1, y2) * o2k(l1, d, y1, y2) / m / l / l
 
+def energy(m : Decimal, l : Decimal, phi : Decimal, phi_derivative : Decimal, k :Decimal, dl : Decimal):
+    return m * G * l * (Decimal(1) - cos_decimal(phi)) + m * l * l * phi_derivative * phi_derivative / Decimal(2) + k / Decimal(4) * dl * dl
+
+def energy_too_huge(m : Decimal, l : Decimal, k :Decimal, dl : Decimal, phi : Decimal, phi_derivative : Decimal, delta_energy : Decimal, energy_0 : Decimal):
+    current_energy = energy(m, l, phi, phi_derivative, k, dl)
+    
+    return current_energy > energy_0 + delta_energy + EPSILON
+
+def correct_w(energy_0 : Decimal, work_of_resistance : Decimal, m : Decimal, l : Decimal, phi : Decimal, k : Decimal, dl : Decimal):
+    energy = energy_0 + work_of_resistance
+    new_phi_derivative = Decimal (2) / m / l / l * energy - Decimal(2) * G / l * (Decimal(1) - cos_decimal(phi)) - k * dl * dl / Decimal(2) / m / l / l
+    if new_phi_derivative < EPSILON:
+        new_phi_derivative = Decimal(0)
+    
+    
+    return new_phi_derivative.sqrt()
+
 def get_next(y1_i : Decimal, y2_i : Decimal, y3_i : Decimal, y4_i : Decimal, w0 : Decimal, beta : Decimal, h : Decimal, k : Decimal, d : Decimal, l1 : Decimal, m : Decimal, l : Decimal):
     k1_1 = f1(y1_i, y2_i, y3_i, w0, beta, k, d, l1, m, l)
     k2_1 = f2(y1_i, y2_i, y4_i, w0, beta, k, d, l1, m, l)
@@ -82,6 +101,13 @@ def build_graphs(beta : Decimal, phi1_0 : Decimal, phi2_0 : Decimal, k : Decimal
     y3_values = [W1_0]
     y4_values = [W2_0]
     
+    delta_l_0 = delta_l(d, l1, phi1_0, phi2_0)
+    energy_0_1 = m * G * l * (Decimal(1) - cos_decimal(phi1_0)) + k / 4 * delta_l_0 * delta_l_0
+    energy_0_2 = m * G * l * (Decimal(1) - cos_decimal(phi2_0)) + k / 4 * delta_l_0 * delta_l_0
+    c = Decimal(2) * m * beta
+    work_of_resistance_1 = Decimal(0)
+    work_of_resistance_2 = Decimal(0)
+    
     y1_i = phi1_0
     y2_i = phi2_0
     y3_i = y3_values[0]
@@ -89,6 +115,26 @@ def build_graphs(beta : Decimal, phi1_0 : Decimal, phi2_0 : Decimal, k : Decimal
     
     for _ in range(1, steps):
         y1_i, y2_i, y3_i, y4_i = get_next(y1_i, y2_i, y3_i, y4_i, natural_frequency, beta, t_step, k, d, l1, m, l)
+
+        abs_y3_i = abs(y3_i)
+        abs_y4_i = abs(y4_i)
+        work_of_resistance_1 -= c * l * l * abs_y3_i * abs_y3_i * t_step
+        work_of_resistance_2 -= c * l * l * abs_y4_i * abs_y4_i * t_step
+        delta_l_i = delta_l(d, l1, y1_i, y2_i)
+        if energy_too_huge(m, l, k, delta_l_i, y1_i, y3_i, work_of_resistance_1, energy_0_1):
+            if y3_i < EPSILON:
+                y3_i = -correct_w(energy_0_1, work_of_resistance_1, m, l, y1_i, k, delta_l_i)
+            else:
+                y3_i = correct_w(energy_0_1, work_of_resistance_1, m, l, y1_i, k, delta_l_i)
+                
+            
+        if energy_too_huge(m, l, k, delta_l_i, y2_i, y4_i, work_of_resistance_2, energy_0_2):
+            if y4_i < EPSILON:
+                y4_i = -correct_w(energy_0_2, work_of_resistance_2, m, l, y2_i, k, delta_l_i)
+            else:
+                y4_i = correct_w(energy_0_2, work_of_resistance_2, m, l, y2_i, k, delta_l_i)
+                
+            
         y1_values.append(y1_i)
         y2_values.append(y2_i)
         y3_values.append(y3_i)
@@ -120,17 +166,19 @@ def build_graphs_euler(beta: Decimal, phi1_0: Decimal, phi2_0: Decimal, k: Decim
     t_values = [t_step * Decimal(i) for i in range(steps)]
     y1_values = [phi1_0]
     y2_values = [phi2_0]
+    y3_values = [W1_0]
+    y4_values = [W2_0]
     
     y1_i = y1_values[0]
     y2_i = y2_values[0]
-    y3_i = W1_0
-    y4_i = W2_0
+    y3_i = y3_values[0]
+    y4_i = y4_values[0]
     
     for _ in range(1, steps):
         y3_i_derivative = f1(y1_i, y2_i, y3_i, natural_frequency, beta, k, d, l1, m, l)
-        y4_i_derivative = f2(y1_i, y2_i, y3_i, natural_frequency, beta, k, d, l1, m, l)
-        y1_next = y1_i + y3_i * t_step + y3_i_derivative * t_step * t_step / 2
-        y2_next = y2_i + y4_i * t_step + y4_i_derivative * t_step * t_step / 2
+        y4_i_derivative = f2(y1_i, y2_i, y4_i, natural_frequency, beta, k, d, l1, m, l)
+        y1_next = y1_i + y3_i * t_step + y3_i_derivative * t_step * t_step / Decimal(2)
+        y2_next = y2_i + y4_i * t_step + y4_i_derivative * t_step * t_step / Decimal(2)
         y3_next = y3_i + y3_i_derivative * t_step
         y4_next = y4_i + y4_i_derivative * t_step
         y1_i = y1_next
@@ -139,20 +187,24 @@ def build_graphs_euler(beta: Decimal, phi1_0: Decimal, phi2_0: Decimal, k: Decim
         y4_i = y4_next
         y1_values.append(y1_i)
         y2_values.append(y2_i)
+        y3_values.append(y3_i)
+        y4_values.append(y4_i)
     
-    # Визуализация
+    # -------------------Графики---------------------
     _, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
-    ax1.plot(t_values, y1_values, label='φ₁(t)', color='blue')
-    ax1.set_ylabel('φ₁(t), [рад]', fontsize=12)
+    # Графики: φ1(t) и φ2(t)  [радианы]
+    ax1.plot(t_values, y1_values, label='φ1(t)', color='cyan')
+    ax1.plot(t_values, y2_values, label='φ2(t)', color='purple')
+    ax1.set_ylabel('φ(t), [рад]', fontsize=12)
     ax1.set_xlabel('Время, [с]', fontsize=12)
     ax1.grid(True)
     ax1.legend()
-    
-    ax2.plot(t_values, y2_values, label='φ₂(t)', color='red')
-    ax2.set_ylabel('φ₂(t), [рад]', fontsize=12)
+    # Графики w1(t) и w2(t) [рад/с]
+    ax2.plot(t_values, y3_values, label='ω1(t)', color='cyan')
+    ax2.plot(t_values, y4_values, label='ω2(t)', color='purple')
+    ax2.set_ylabel('ω(t), [рад/с]', fontsize=12)
     ax2.set_xlabel('Время, [с]', fontsize=12)
     ax2.grid(True)
     ax2.legend()
-    
     plt.tight_layout()
     plt.show()
